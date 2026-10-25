@@ -6,7 +6,7 @@ page.on("pageerror", e=>{errors.push(String(e)); console.log("WEBKIT JS ERROR",S
 page.on("response",r=>{if(r.status()>=400)bad.push(r.status()+" "+r.url());});
 page.on("requestfailed",r=>{bad.push(r.url()+" "+r.failure());});
 page.on("console",m=>{if(m.type()==="error")console.log("WEBKIT CONSOLE",m.text().slice(0,400));});
-await page.goto("http://127.0.0.1:8975/go-v4/index.html",{waitUntil:"domcontentloaded",timeout:30000});
+await page.goto("http://127.0.0.1:8975/go-v5/index.html",{waitUntil:"domcontentloaded",timeout:30000});
 let last={};
 for (const delay of [8000,15000,18000]) {
  await page.waitForTimeout(delay);
