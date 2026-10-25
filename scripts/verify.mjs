@@ -19,7 +19,7 @@ page.on("console", m => {if(m.type()==="error") console.log("CONSOLE",m.text().s
 page.on("response", r => {if(r.status()>=400) resources.push(r.status()+" "+r.url()); if(r.url().endsWith(".xml"))console.log("XML RESPONSE",r.status(),r.url());});
 page.on("request",r=>{if(r.url().endsWith(".xml"))console.log("XML REQUEST",r.url());});
 page.on("requestfailed", r => {resources.push("FAILED "+r.url()+" "+r.failure());});
-const url="http://127.0.0.1:8975/go-v8/index.html";
+const url="http://127.0.0.1:8975/go-v9/index.html";
 console.log("Opening",url);
 await page.goto(url,{waitUntil:"domcontentloaded",timeout:30000});
 let final=null;
@@ -86,9 +86,25 @@ if(landscapeRatio>0.015){
     return {active:r?.wa?.name, buttons:r?.S?.[630]?.q?.length, errors:window.__mdzErrors};
   })));
 }
+const sound=await page.evaluate(async()=>{
+ const contexts=window.__mdzAudioContexts||[];
+ const context=contexts[0];
+ let decoded=null;
+ if(context){
+  try{
+   const data=await fetch("media/ak_chamber.m4a").then(r=>{if(!r.ok)throw Error(r.status);return r.arrayBuffer()});
+   const buffer=await context.decodeAudioData(data);
+   decoded={duration:buffer.duration,channels:buffer.numberOfChannels};
+  }catch(e){decoded={error:String(e)}}
+ }
+ return {count:contexts.length,states:contexts.map(c=>c.state),
+   unlocks:window.__mdzAudioUnlocks,errors:window.__mdzAudioErrors,
+   decoded:decoded};
+});
+console.log("CHROME SOUND CHECK",JSON.stringify(sound));
 console.log("FAILED RESOURCES",resources.slice(0,35),"TOTAL",resources.length);
 await browser.close();
-if(!dictionaries.ready || dictionaries.sample.some(x=>typeof x.first!=="string"||!x.first||x.first==="0") || errors.length || resources.length || !final.bootStarted || final.targetLayout!=="Menu" || final.initialized<0.99 || Math.max(uiRatio,landscapeRatio)<0.015 || autoMenu.spriteButtons<4) {
+if(sound.count<1 || sound.states.some(x=>x!=="running") || !sound.decoded || !sound.decoded.duration || sound.errors.length || !dictionaries.ready || dictionaries.sample.some(x=>typeof x.first!=="string"||!x.first||x.first==="0") || errors.length || resources.length || !final.bootStarted || final.targetLayout!=="Menu" || final.initialized<0.99 || Math.max(uiRatio,landscapeRatio)<0.015 || autoMenu.spriteButtons<4) {
  throw Error("Game failed automated boot verification: "+JSON.stringify(final));
 }
 console.log("PASS: Construct 2 runtime started, forced real Menu layout, no script or resource errors");
