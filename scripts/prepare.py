@@ -10,7 +10,7 @@ from pathlib import Path
 
 SOURCE = "https://raw.githubusercontent.com/DorinelMDZ/Mini-DayZ-IOS-PC/main/www.zip"
 DEST = Path("site")
-GAME = DEST / "go-v5"
+GAME = DEST / "go-v6"
 if DEST.exists():
     shutil.rmtree(DEST)
 GAME.mkdir(parents=True)
@@ -71,6 +71,28 @@ window.addEventListener("error",function(ev){
 window.addEventListener("unhandledrejection",function(ev){
  window.__mdzErrors.push(String(ev.reason));
 });
+// Real native Construct 2 menu recovery. No fake HTML menu or overlay.
+(function(){
+ var armedAt=0, attempts=0, timer;
+ function ensure(){
+   var rt=window.cr_getC2Runtime && window.cr_getC2Runtime();
+   if(!rt || rt.Ij || !rt.wa || rt.wa.name!=="Menu" || typeof window.c2_callFunction!=="function")return;
+   var existing=rt.S && rt.S[630] && rt.S[630].q && rt.S[630].q.length || 0;
+   if(existing){window.__mdzMenuDrawn=existing;clearInterval(timer);return;}
+   if(!armedAt){armedAt=Date.now();return;}
+   if(Date.now()-armedAt<1600 || attempts>=4)return;
+   attempts++;
+   try {
+     window.c2_callFunction("Device_check",[]);
+     window.c2_callFunction("menu_draw_main",[]);
+     var drawn=rt.S && rt.S[630] && rt.S[630].q && rt.S[630].q.length || 0;
+     window.__mdzMenuDrawn=drawn;
+     if(drawn)clearInterval(timer);
+   }catch(err){window.__mdzErrors.push("Menu repair: "+String(err));}
+   armedAt=Date.now();
+ }
+ timer=setInterval(ensure,350);
+})();
 </script>"""
 html = html.replace('<script src="jquery-3.4.1.min.js"></script>', boot + '\n<script src="jquery-3.4.1.min.js"></script>', 1)
 # Completely remove the registration function inside original index to avoid
@@ -85,8 +107,8 @@ index_file.write_text(html, encoding="utf-8")
 (DEST / "index.html").write_text(
     '<!doctype html><html><head><meta charset="utf-8">'
     '<meta name="viewport" content="width=device-width,initial-scale=1">'
-    '<meta http-equiv="refresh" content="0; url=go-v5/index.html">'
-    '</head><body><a href="go-v5/index.html">Abrir Mini DayZ</a></body></html>',
+    '<meta http-equiv="refresh" content="0; url=go-v6/index.html">'
+    '</head><body><a href="go-v6/index.html">Abrir Mini DayZ</a></body></html>',
     encoding="utf-8"
 )
 (DEST / ".nojekyll").touch()
