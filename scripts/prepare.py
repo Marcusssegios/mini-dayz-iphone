@@ -28,6 +28,15 @@ with zipfile.ZipFile(io.BytesIO(archive)) as z:
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(z.read(entry))
 
+# Legacy dynamic UI audio was referenced but omitted from the archive.
+# Reuse the source game's own compatible button-click sample.
+for extension in ("ogg", "m4a"):
+    source = GAME / "media" / ("empty_click." + extension)
+    target = GAME / "media" / ("menu_click." + extension)
+    if not source.is_file():
+        raise RuntimeError("Missing native click sample: " + str(source))
+    shutil.copyfile(source, target)
+
 data_file = GAME / "data.js"
 data = data_file.read_text(encoding="utf-8-sig")
 # Construct 2 project[1] is the REAL start layout. "Loading" is an entire
