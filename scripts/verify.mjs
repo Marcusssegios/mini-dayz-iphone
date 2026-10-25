@@ -64,6 +64,27 @@ for(let y=30;y<land.height-30;y+=3)for(let x=60;x<land.width-60;x+=3){
 }
 const landscapeRatio=painted/Math.max(1,pixels);
 console.log("LANDSCAPE UI COVERAGE",landscapeRatio.toFixed(4));
+console.log("MENU API",JSON.stringify(await page.evaluate(()=>{
+ const r=window.cr_getC2Runtime?.();
+ return {hasFunction:typeof window.c2_callFunction,sprites630:r?.S?.[630]?.q?.length,types630:r?.S?.[630]?.name};
+})));
+for(const fn of ["Device_check","from_loader","menu_draw_main"]){
+ try {
+  await page.evaluate(name=>window.c2_callFunction?.(name,[]),fn);
+  await page.waitForTimeout(2200);
+  const img=PNG.sync.read(await page.screenshot({path:"site/ci-forced-"+fn+".png"}));
+  let count=0,total=0;
+  for(let y=30;y<img.height-30;y+=4)for(let x=60;x<img.width-60;x+=4){
+    const n=(y*img.width+x)*4;
+    total++;if(img.data[n]<220||img.data[n+1]<220||img.data[n+2]<220)count++;
+  }
+  console.log("FORCED FUNCTION",fn,"UI RATIO",(count/Math.max(total,1)).toFixed(4),
+    JSON.stringify(await page.evaluate(()=>{
+      const r=window.cr_getC2Runtime?.();
+      return {active:r?.wa?.name, btnSpriteInstances:r?.S?.[630]?.q?.length, errors:window.__mdzErrors};
+    })));
+ }catch(e){console.log("FORCED FUNCTION ERROR",fn,String(e));}
+}
 console.log("FAILED RESOURCES",resources.slice(0,35),"TOTAL",resources.length);
 await browser.close();
 if(errors.length || resources.length || !final.bootStarted || final.targetLayout!=="Menu" || final.initialized<0.99 || Math.max(uiRatio,landscapeRatio)<0.015) {
