@@ -8,7 +8,7 @@ page.on("pageerror", e=>{errors.push(String(e)); console.log("WEBKIT JS ERROR",S
 page.on("response",r=>{if(r.status()>=400)bad.push(r.status()+" "+r.url());});
 page.on("requestfailed",r=>{bad.push(r.url()+" "+r.failure());});
 page.on("console",m=>{if(m.type()==="error")console.log("WEBKIT CONSOLE",m.text().slice(0,400));});
-await page.goto("http://127.0.0.1:8975/go-v8/index.html",{waitUntil:"domcontentloaded",timeout:30000});
+await page.goto("http://127.0.0.1:8975/go-v9/index.html",{waitUntil:"domcontentloaded",timeout:30000});
 let last={};
 for (const delay of [8000,15000,18000]) {
  await page.waitForTimeout(delay);
@@ -53,12 +53,22 @@ const dictionaries=await page.evaluate(()=>{
    tenth:r?.S?.[id]?.q?.[0]?.rd?.[10]?.[0]?.[0]}))};
 });
 console.log("WEBKIT TEXT FIX",JSON.stringify(dictionaries));
+await page.touchscreen.tap(421,192);
+await page.waitForTimeout(1200);
+const sound=await page.evaluate(()=>({
+  states:(window.__mdzAudioContexts||[]).map(c=>c.state),
+  unlocks:window.__mdzAudioUnlocks,
+  errors:window.__mdzAudioErrors,
+  button:document.getElementById("mdz-audio-unlock")?.style.display,
+  pluginReady:!!window.cr_getC2Runtime?.()?.aj
+}));
+console.log("WEBKIT SOUND CHECK",JSON.stringify(sound));
 console.log("WEBKIT FAILED RESOURCES",bad.slice(0,25),"TOTAL",bad.length);
 // Prove the fallback works even if legacy XML/XPath completely fails in Safari.
 const blocked=await browser.newPage({...devices["iPhone 13"],viewport:{width:390,height:844}});
 let intercepted=0;
 await blocked.route("**/l_eng_*.xml",route=>{intercepted++;return route.abort();});
-await blocked.goto("http://127.0.0.1:8975/go-v8/index.html",{waitUntil:"domcontentloaded",timeout:30000});
+await blocked.goto("http://127.0.0.1:8975/go-v9/index.html",{waitUntil:"domcontentloaded",timeout:30000});
 await blocked.waitForFunction(()=>{
  const r=window.cr_getC2Runtime?.();
  return r && r.Ml>=0.99 && window.__mdzLocaleReady;
@@ -74,7 +84,7 @@ if(intercepted<4||blockedResult.some(x=>typeof x.value!=="string"||!x.value||x.v
  throw Error("Safari XML-free fallback failed: "+JSON.stringify(blockedResult));
 }
 await browser.close();
-if(!dictionaries.ready||dictionaries.sample.some(x=>typeof x.first!=="string"||!x.first||x.first==="0")||!last.bootStarted||last.layout!=="Menu"||last.loadedLayouts<7||last.progress<0.99||Math.max(uiRatio,landscapeRatio)<0.015||bad.length||errors.length){
+if(sound.states.length<1||sound.states.some(x=>x!=="running")||sound.errors.length||!dictionaries.ready||dictionaries.sample.some(x=>typeof x.first!=="string"||!x.first||x.first==="0")||!last.bootStarted||last.layout!=="Menu"||last.loadedLayouts<7||last.progress<0.99||Math.max(uiRatio,landscapeRatio)<0.015||bad.length||errors.length){
  throw Error("iPhone WebKit engine failed to load Menu: "+JSON.stringify(last));
 }
 console.log("PASS WEBKIT: iPhone-sized WebKit reaches fully loaded Construct 2 Menu layout.");
