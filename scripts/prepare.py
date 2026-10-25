@@ -10,7 +10,7 @@ from pathlib import Path
 
 SOURCE = "https://raw.githubusercontent.com/DorinelMDZ/Mini-DayZ-IOS-PC/main/www.zip"
 DEST = Path("site")
-GAME = DEST / "go-v6"
+GAME = DEST / "go-v7"
 if DEST.exists():
     shutil.rmtree(DEST)
 GAME.mkdir(parents=True)
@@ -58,7 +58,21 @@ menu_open = menu_events[107]
 if menu_open[0] != 0 or len(menu_open[6]) < 16:
     raise RuntimeError("Unexpected Menu_Events event data")
 menu_open[5] = [[-1, 39, None, 1, False, False, False, 902026102500001, False]]
+# The Loading layout also downloaded the four XML dictionaries. Bypassing
+# Loading prevented the text lookup objects from ever being initialized, so
+# all text IDs were rendered as "0". Start the same AJAX requests on Menu start.
+menu_start = menu_events[99][7][0][7][0]
+if menu_start[5][0][1] != 39:
+    raise RuntimeError("Menu start event signature changed")
+xml_loads = [
+    [232,420,None,902026102510001,False,[[1,[2,"Local"]],[12,"l_eng_items.xml"]]],
+    [232,420,None,902026102510002,False,[[1,[2,"Local_ui"]],[12,"l_eng_ui.xml"]]],
+    [232,420,None,902026102510003,False,[[1,[2,"Local_logs"]],[12,"l_eng_log.xml"]]],
+    [232,420,None,902026102510004,False,[[1,[2,"Local_new"]],[12,"l_eng_new.xml"]]]
+]
+menu_start[6][0:0] = xml_loads
 data_file.write_text(json.dumps(model, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+print("Four English XML localization dictionaries requested on Menu start.")
 print("Menu draw action now runs at layout startup (not gated by XML).")
 
 index_file = GAME / "index.html"
@@ -116,8 +130,8 @@ index_file.write_text(html, encoding="utf-8")
 (DEST / "index.html").write_text(
     '<!doctype html><html><head><meta charset="utf-8">'
     '<meta name="viewport" content="width=device-width,initial-scale=1">'
-    '<meta http-equiv="refresh" content="0; url=go-v6/index.html">'
-    '</head><body><a href="go-v6/index.html">Abrir Mini DayZ</a></body></html>',
+    '<meta http-equiv="refresh" content="0; url=go-v7/index.html">'
+    '</head><body><a href="go-v7/index.html">Abrir Mini DayZ</a></body></html>',
     encoding="utf-8"
 )
 (DEST / ".nojekyll").touch()
