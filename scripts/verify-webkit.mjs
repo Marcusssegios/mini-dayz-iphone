@@ -54,6 +54,25 @@ const dictionaries=await page.evaluate(()=>{
 });
 console.log("WEBKIT TEXT FIX",JSON.stringify(dictionaries));
 console.log("WEBKIT FAILED RESOURCES",bad.slice(0,25),"TOTAL",bad.length);
+// Prove the fallback works even if legacy XML/XPath completely fails in Safari.
+const blocked=await browser.newPage({...devices["iPhone 13"],viewport:{width:390,height:844}});
+let intercepted=0;
+await blocked.route("**/l_eng_*.xml",route=>{intercepted++;return route.abort();});
+await blocked.goto("http://127.0.0.1:8975/go-v8/index.html",{waitUntil:"domcontentloaded",timeout:30000});
+await blocked.waitForFunction(()=>{
+ const r=window.cr_getC2Runtime?.();
+ return r && r.Ml>=0.99 && window.__mdzLocaleReady;
+},null,{timeout:60000});
+const blockedResult=await blocked.evaluate(()=>{
+ const r=window.cr_getC2Runtime?.();
+ return [540,543,544,911].map(id=>({id,value:r?.S?.[id]?.q?.[0]?.rd?.[1]?.[0]?.[0]}));
+});
+console.log("WEBKIT WITHOUT XML",JSON.stringify({intercepted,blockedResult}));
+await blocked.screenshot({path:"site/ci-webkit-no-xml-fallback.png",timeout:20000});
+await blocked.close();
+if(intercepted<4||blockedResult.some(x=>typeof x.value!=="string"||!x.value||x.value==="0")){
+ throw Error("Safari XML-free fallback failed: "+JSON.stringify(blockedResult));
+}
 await browser.close();
 if(!dictionaries.ready||dictionaries.sample.some(x=>typeof x.first!=="string"||!x.first||x.first==="0")||!last.bootStarted||last.layout!=="Menu"||last.loadedLayouts<7||last.progress<0.99||Math.max(uiRatio,landscapeRatio)<0.015||bad.length||errors.length){
  throw Error("iPhone WebKit engine failed to load Menu: "+JSON.stringify(last));
