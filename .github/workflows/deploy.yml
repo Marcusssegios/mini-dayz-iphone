@@ -31,15 +31,15 @@ jobs:
                   if not dest.startswith(os.path.realpath('site')+os.sep): raise ValueError('Invalid ZIP path')
               z.extractall('site')
           roots=list(__import__('pathlib').Path('site').rglob('index.html'))
-if not roots: raise RuntimeError('No se encontró index.html dentro del ZIP')
-root=roots[0].parent
-if root.resolve()!=__import__('pathlib').Path('site').resolve():
-    import shutil
-    temp=__import__('pathlib').Path('site_flat')
-    shutil.copytree(root,temp)
-    shutil.rmtree('site')
-    temp.rename('site')
-print('Archivos preparados:',len(os.listdir('site')))
+          if not roots: raise RuntimeError('No se encontró index.html dentro del ZIP')
+          root=roots[0].parent
+          if root.resolve()!=__import__('pathlib').Path('site').resolve():
+              import shutil
+              temp=__import__('pathlib').Path('site_flat')
+              shutil.copytree(root,temp)
+              shutil.rmtree('site')
+              temp.rename('site')
+          print('Archivos preparados:',len(os.listdir('site')))
           PY
       - name: Evitar caché antigua y añadir recuperación
         run: |
