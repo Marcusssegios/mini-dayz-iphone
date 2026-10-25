@@ -18,7 +18,7 @@ page.on("pageerror", e => {errors.push(String(e)); console.log("JS ERROR",String
 page.on("console", m => {if(m.type()==="error") console.log("CONSOLE",m.text().slice(0,300));});
 page.on("response", r => {if(r.status()>=400) resources.push(r.status()+" "+r.url());});
 page.on("requestfailed", r => {resources.push("FAILED "+r.url()+" "+r.failure());});
-const url="http://127.0.0.1:8975/go-v6/index.html";
+const url="http://127.0.0.1:8975/go-v7/index.html";
 console.log("Opening",url);
 await page.goto(url,{waitUntil:"domcontentloaded",timeout:30000});
 let final=null;
@@ -69,6 +69,7 @@ const autoMenu=await page.evaluate(()=>{
  return {drawn:window.__mdzMenuDrawn||0,spriteButtons:r?.S?.[630]?.q?.length||0,layout:r?.wa?.name};
 });
 console.log("AUTOMATIC REAL MENU",JSON.stringify(autoMenu));
+console.log("TEXT DICTIONARIES",JSON.stringify(await page.evaluate(()=>{const r=window.cr_getC2Runtime?.();return [540,541,543,544,911].map(id=>({id,instances:r?.S?.[id]?.q?.length}));})));
 if(landscapeRatio>0.015){
   await page.touchscreen.tap(421,192);
   await page.waitForTimeout(1300);
