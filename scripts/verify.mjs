@@ -1,5 +1,6 @@
 import { chromium } from "playwright-core";
 import fs from "node:fs";
+import { PNG } from "pngjs";
 
 const candidates = ["/usr/bin/google-chrome", "/usr/bin/google-chrome-stable", "/opt/google/chrome/chrome", "/usr/bin/chromium"];
 const exe = candidates.find(x => fs.existsSync(x));
@@ -39,9 +40,17 @@ for (const delay of [5000,15000,20000]) {
   final=state;
   await page.screenshot({path:"site/ci-menu-test.png",timeout:20000});
 }
+const picture=PNG.sync.read(fs.readFileSync("site/ci-menu-test.png"));
+let uiPixels=0, area=0;
+for(let y=120;y<picture.height-80;y+=3)for(let x=25;x<picture.width-25;x+=3){
+  const off=(y*picture.width+x)*4,r=picture.data[off],g=picture.data[off+1],b=picture.data[off+2];
+  area++;if(r<220||g<220||b<220)uiPixels++;
+}
+const uiRatio=uiPixels/Math.max(area,1);
+console.log("VISUAL UI COVERAGE",uiRatio.toFixed(4));
 console.log("FAILED RESOURCES",resources.slice(0,35),"TOTAL",resources.length);
 await browser.close();
-if(errors.length || resources.length || !final.bootStarted || final.targetLayout!=="Menu") {
+if(errors.length || resources.length || !final.bootStarted || final.targetLayout!=="Menu" || final.initialized<0.99 || uiRatio<0.015) {
  throw Error("Game failed automated boot verification: "+JSON.stringify(final));
 }
 console.log("PASS: Construct 2 runtime started, forced real Menu layout, no script or resource errors");
