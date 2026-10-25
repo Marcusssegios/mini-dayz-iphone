@@ -16,7 +16,8 @@ const errors=[];
 const resources=[];
 page.on("pageerror", e => {errors.push(String(e)); console.log("JS ERROR",String(e).slice(0,300));});
 page.on("console", m => {if(m.type()==="error") console.log("CONSOLE",m.text().slice(0,300));});
-page.on("response", r => {if(r.status()>=400) resources.push(r.status()+" "+r.url());});
+page.on("response", r => {if(r.status()>=400) resources.push(r.status()+" "+r.url()); if(r.url().endsWith(".xml"))console.log("XML RESPONSE",r.status(),r.url());});
+page.on("request",r=>{if(r.url().endsWith(".xml"))console.log("XML REQUEST",r.url());});
 page.on("requestfailed", r => {resources.push("FAILED "+r.url()+" "+r.failure());});
 const url="http://127.0.0.1:8975/go-v7/index.html";
 console.log("Opening",url);
@@ -69,7 +70,13 @@ const autoMenu=await page.evaluate(()=>{
  return {drawn:window.__mdzMenuDrawn||0,spriteButtons:r?.S?.[630]?.q?.length||0,layout:r?.wa?.name};
 });
 console.log("AUTOMATIC REAL MENU",JSON.stringify(autoMenu));
-console.log("TEXT DICTIONARIES",JSON.stringify(await page.evaluate(()=>{const r=window.cr_getC2Runtime?.();return [540,541,543,544,911].map(id=>({id,instances:r?.S?.[id]?.q?.length}));})));
+console.log("TEXT DICTIONARIES",JSON.stringify(await page.evaluate(()=>{
+ const r=window.cr_getC2Runtime?.();
+ return [540,541,543,544,911,232].map(id=>{
+  const o=r?.S?.[id]?.q?.[0];
+  return {id,instances:r?.S?.[id]?.q?.length,keys:o?Object.keys(o).slice(0,25):[],primitives:o?Object.entries(o).filter(([k,v])=>typeof v==="string"||typeof v==="number").slice(0,12):[],data:o?Object.entries(o).filter(([k,v])=>Array.isArray(v)).slice(0,5).map(([k,v])=>[k,v.length,JSON.stringify(v.slice(0,2)).slice(0,300)]):[]};
+ });
+})));
 if(landscapeRatio>0.015){
   await page.touchscreen.tap(421,192);
   await page.waitForTimeout(1300);
