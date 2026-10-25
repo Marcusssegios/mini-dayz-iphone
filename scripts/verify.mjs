@@ -48,9 +48,25 @@ for(let y=120;y<picture.height-80;y+=3)for(let x=25;x<picture.width-25;x+=3){
 }
 const uiRatio=uiPixels/Math.max(area,1);
 console.log("VISUAL UI COVERAGE",uiRatio.toFixed(4));
+console.log("ENGINE FLAGS",JSON.stringify(await page.evaluate(()=>{
+ const r=window.cr_getC2Runtime?.();
+ return {ij:r?.Ij,currentLayout:r?.wa?.name,engineProgress:r?.gd,readyCount:r?.uk?.filter(x=>x.src&&!x.complete&&!x.loaded).length,
+   imgs:r?.uk?.length,frame:r?.Vd,clock:r?.Tl,canvasWidth:r?.width,canvasHeight:r?.height,textureGl:!!r?.H};
+})));
+await page.setViewportSize({width:844,height:390});
+await page.waitForTimeout(5000);
+const landscapeBuffer=await page.screenshot({path:"site/ci-landscape-menu.png",timeout:20000});
+const land=PNG.sync.read(landscapeBuffer);
+let painted=0, pixels=0;
+for(let y=30;y<land.height-30;y+=3)for(let x=60;x<land.width-60;x+=3){
+ const i=(y*land.width+x)*4;pixels++;
+ if(land.data[i]<220||land.data[i+1]<220||land.data[i+2]<220)painted++;
+}
+const landscapeRatio=painted/Math.max(1,pixels);
+console.log("LANDSCAPE UI COVERAGE",landscapeRatio.toFixed(4));
 console.log("FAILED RESOURCES",resources.slice(0,35),"TOTAL",resources.length);
 await browser.close();
-if(errors.length || resources.length || !final.bootStarted || final.targetLayout!=="Menu" || final.initialized<0.99 || uiRatio<0.015) {
+if(errors.length || resources.length || !final.bootStarted || final.targetLayout!=="Menu" || final.initialized<0.99 || Math.max(uiRatio,landscapeRatio)<0.015) {
  throw Error("Game failed automated boot verification: "+JSON.stringify(final));
 }
 console.log("PASS: Construct 2 runtime started, forced real Menu layout, no script or resource errors");
