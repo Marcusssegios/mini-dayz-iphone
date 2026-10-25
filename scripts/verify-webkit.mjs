@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import { PNG } from "pngjs";
 import {webkit, devices} from "playwright-core";
 const browser=await webkit.launch({headless:true});
 const page=await browser.newPage({...devices["iPhone 13"],viewport:{width:390,height:844}});
@@ -22,9 +24,17 @@ for (const delay of [8000,15000,18000]) {
  console.log("WEBKIT STATE",JSON.stringify(last));
  await page.screenshot({path:"site/ci-webkit-menu.png",timeout:20000});
 }
+const picture=PNG.sync.read(fs.readFileSync("site/ci-webkit-menu.png"));
+let uiPixels=0,area=0;
+for(let y=120;y<picture.height-80;y+=3)for(let x=25;x<picture.width-25;x+=3){
+ const i=(y*picture.width+x)*4;
+ area++;if(picture.data[i]<220||picture.data[i+1]<220||picture.data[i+2]<220)uiPixels++;
+}
+const uiRatio=uiPixels/Math.max(area,1);
+console.log("WEBKIT VISUAL UI COVERAGE",uiRatio.toFixed(4));
 console.log("WEBKIT FAILED RESOURCES",bad.slice(0,25),"TOTAL",bad.length);
 await browser.close();
-if(!last.bootStarted||last.layout!=="Menu"||last.loadedLayouts<7||last.progress<0.99||bad.length||errors.length){
+if(!last.bootStarted||last.layout!=="Menu"||last.loadedLayouts<7||last.progress<0.99||uiRatio<0.015||bad.length||errors.length){
  throw Error("iPhone WebKit engine failed to load Menu: "+JSON.stringify(last));
 }
 console.log("PASS WEBKIT: iPhone-sized WebKit reaches fully loaded Construct 2 Menu layout.");
