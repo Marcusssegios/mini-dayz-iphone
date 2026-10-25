@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Build a clean Construct 2 web edition, starting directly in the real Menu layout."""
 import io
+import json
 import re
 import shutil
 import urllib.request
@@ -9,7 +10,7 @@ from pathlib import Path
 
 SOURCE = "https://raw.githubusercontent.com/DorinelMDZ/Mini-DayZ-IOS-PC/main/www.zip"
 DEST = Path("site")
-GAME = DEST / "go-v4"
+GAME = DEST / "go-v5"
 if DEST.exists():
     shutil.rmtree(DEST)
 GAME.mkdir(parents=True)
@@ -38,7 +39,18 @@ replacement, count = re.subn(
 )
 if count != 1:
     raise RuntimeError("Unable to locate Construct 2 start layout")
-data_file.write_text(replacement, encoding="utf-8")
+# The original Menu waits for four legacy XML localization callbacks before drawing
+# ANY buttons. On modern browsers those callbacks can stall, leaving only a logo.
+# Execute that existing native Construct 2 menu initialization on layout start,
+# while keeping the original drawing actions and controls.
+model = json.loads(replacement)
+menu_events = model["project"][6][1][1]
+menu_open = menu_events[107]
+if menu_open[0] != 0 or len(menu_open[6]) < 16:
+    raise RuntimeError("Unexpected Menu_Events event data")
+menu_open[5] = [[-1, 39, None, 1, False, False, False, 902026102500001, False]]
+data_file.write_text(json.dumps(model, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+print("Menu draw action now runs at layout startup (not gated by XML).")
 
 index_file = GAME / "index.html"
 html = index_file.read_text(encoding="utf-8-sig")
@@ -73,8 +85,8 @@ index_file.write_text(html, encoding="utf-8")
 (DEST / "index.html").write_text(
     '<!doctype html><html><head><meta charset="utf-8">'
     '<meta name="viewport" content="width=device-width,initial-scale=1">'
-    '<meta http-equiv="refresh" content="0; url=go-v4/index.html">'
-    '</head><body><a href="go-v4/index.html">Abrir Mini DayZ</a></body></html>',
+    '<meta http-equiv="refresh" content="0; url=go-v5/index.html">'
+    '</head><body><a href="go-v5/index.html">Abrir Mini DayZ</a></body></html>',
     encoding="utf-8"
 )
 (DEST / ".nojekyll").touch()
