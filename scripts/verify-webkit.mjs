@@ -32,9 +32,23 @@ for(let y=120;y<picture.height-80;y+=3)for(let x=25;x<picture.width-25;x+=3){
 }
 const uiRatio=uiPixels/Math.max(area,1);
 console.log("WEBKIT VISUAL UI COVERAGE",uiRatio.toFixed(4));
+console.log("WEBKIT ENGINE FLAGS",JSON.stringify(await page.evaluate(()=>{
+ const r=window.cr_getC2Runtime?.();
+ return {ij:r?.Ij,currentLayout:r?.wa?.name,engineProgress:r?.gd,frame:r?.Vd,textureGl:!!r?.H};
+})));
+await page.setViewportSize({width:844,height:390});
+await page.waitForTimeout(5000);
+const land=PNG.sync.read(await page.screenshot({path:"site/ci-webkit-landscape.png",timeout:20000}));
+let painted=0,pixels=0;
+for(let y=30;y<land.height-30;y+=3)for(let x=60;x<land.width-60;x+=3){
+ const i=(y*land.width+x)*4;pixels++;
+ if(land.data[i]<220||land.data[i+1]<220||land.data[i+2]<220)painted++;
+}
+const landscapeRatio=painted/Math.max(1,pixels);
+console.log("WEBKIT LANDSCAPE UI COVERAGE",landscapeRatio.toFixed(4));
 console.log("WEBKIT FAILED RESOURCES",bad.slice(0,25),"TOTAL",bad.length);
 await browser.close();
-if(!last.bootStarted||last.layout!=="Menu"||last.loadedLayouts<7||last.progress<0.99||uiRatio<0.015||bad.length||errors.length){
+if(!last.bootStarted||last.layout!=="Menu"||last.loadedLayouts<7||last.progress<0.99||Math.max(uiRatio,landscapeRatio)<0.015||bad.length||errors.length){
  throw Error("iPhone WebKit engine failed to load Menu: "+JSON.stringify(last));
 }
 console.log("PASS WEBKIT: iPhone-sized WebKit reaches fully loaded Construct 2 Menu layout.");
