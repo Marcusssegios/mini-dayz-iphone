@@ -115,7 +115,15 @@ jobs:
           s,count=re.subn(pattern,'/* Inicio manual desde Safari */',s,count=1)
           if count!=1: raise RuntimeError('No se encontró el bloque de inicio automático')
           s=s.replace('</body>',gate+'</body>')
+          # Do not let the Construct 2 runtime register the broken offline service worker.
+          s=s.replace('window.C2_RegisterSW = function C2_RegisterSW()', 'window.C2_RegisterSW = function C2_RegisterSW_DISABLED()')
+          # Keep a separate uncached path, outside the old SW's precache manifest.
           p.write_text(s,encoding='utf-8')
+          import shutil
+          fresh=Path('site/iphone-v3')
+          shutil.copytree('site',fresh,ignore=shutil.ignore_patterns('iphone-v3'))
+          # New entrypoint can be visited directly, bypassing cached index.html.
+          (Path('site')/'play-v3.html').write_text('<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><script>location.replace("./iphone-v3/index.html")</script><a href="./iphone-v3/index.html">Jugar</a>',encoding='utf-8')
           Path('site/.nojekyll').touch()
           PY
       - uses: actions/configure-pages@v5
