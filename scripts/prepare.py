@@ -6,11 +6,12 @@ import re
 import shutil
 import urllib.request
 import zipfile
+from xml.etree import ElementTree
 from pathlib import Path
 
 SOURCE = "https://raw.githubusercontent.com/DorinelMDZ/Mini-DayZ-IOS-PC/main/www.zip"
 DEST = Path("site")
-GAME = DEST / "go-v7"
+GAME = DEST / "go-v8"
 if DEST.exists():
     shutil.rmtree(DEST)
 GAME.mkdir(parents=True)
@@ -75,6 +76,66 @@ data_file.write_text(json.dumps(model, ensure_ascii=False, separators=(",", ":")
 print("Four English XML localization dictionaries requested on Menu start.")
 print("Menu draw action now runs at layout startup (not gated by XML).")
 
+# Safari/WebKit may download XML successfully while its legacy XPath plugin
+# leaves Construct 2's localization arrays empty. Provide an independent
+# parsed dictionary fallback for every item/UI/log/description string.
+translations = {}
+for type_id, filename, element_tag in [
+    (540, "l_eng_items.xml", "item"),
+    (543, "l_eng_ui.xml", "text"),
+    (544, "l_eng_log.xml", "text"),
+    (911, "l_eng_new.xml", "text"),
+]:
+    root = ElementTree.parse(GAME / filename).getroot()
+    entries = {}
+    for element in root.findall(element_tag):
+        raw_id = element.findtext("id")
+        value = element.findtext("name")
+        if raw_id is None or not raw_id.strip().isdigit() or not value:
+            continue
+        number = int(raw_id.strip())
+        if number < 800:
+            entries[number] = value
+    if not entries:
+        raise RuntimeError("No translations in " + filename)
+    translations[type_id] = entries
+    print("Localization entries", filename, len(entries))
+
+fallback = """(function(){
+  "use strict";
+  var dictionary = __LOCALIZATION__;
+  var ticks=0;
+  function restore(){
+    var rt=window.cr_getC2Runtime && window.cr_getC2Runtime();
+    if(!rt || !rt.S)return;
+    var status={}, allReady=true;
+    Object.keys(dictionary).forEach(function(key){
+      var obj=rt.S[Number(key)] && rt.S[Number(key)].q && rt.S[Number(key)].q[0];
+      var values=dictionary[key];
+      if(!obj || !Array.isArray(obj.rd)){allReady=false;return;}
+      var changed=0;
+      Object.keys(values).forEach(function(index){
+        var cell=obj.rd[Number(index)];
+        if(!cell || !cell[0])return;
+        var previous=cell[0][0];
+        if(previous===0 || previous==="0" || previous==="" || previous==null){
+          cell[0][0]=values[index];
+          changed++;
+        }
+      });
+      status[key]={changed:changed,sample:obj.rd[1] && obj.rd[1][0] && obj.rd[1][0][0]};
+      if(typeof status[key].sample!=="string" || !status[key].sample)allReady=false;
+    });
+    window.__mdzLocaleStatus=status;
+    window.__mdzLocaleReady=allReady;
+    ticks++;
+  }
+  // Repair after every language reload too; do not replace valid nonempty text.
+  setInterval(restore,500);
+  restore();
+})();""".replace("__LOCALIZATION__", json.dumps(translations, ensure_ascii=False, separators=(",", ":")))
+(GAME / "localization-fix.js").write_text(fallback, encoding="utf-8")
+
 index_file = GAME / "index.html"
 html = index_file.read_text(encoding="utf-8-sig")
 # Keep Construct 2 standard document-ready startup (no gated start button).
@@ -117,7 +178,7 @@ window.addEventListener("unhandledrejection",function(ev){
  timer=setInterval(ensure,350);
 })();
 </script>"""
-html = html.replace('<script src="jquery-3.4.1.min.js"></script>', boot + '\n<script src="jquery-3.4.1.min.js"></script>', 1)
+html = html.replace('<script src="jquery-3.4.1.min.js"></script>', boot + '\n<script src="localization-fix.js"></script>\n<script src="jquery-3.4.1.min.js"></script>', 1)
 # Completely remove the registration function inside original index to avoid
 # overriding our no-op and preserve the initial unmodified startup script.
 sw_pattern = r'window\.C2_RegisterSW\s*=\s*function C2_RegisterSW\(\)\s*\{[\s\S]*?\n\s*\};'
@@ -130,8 +191,8 @@ index_file.write_text(html, encoding="utf-8")
 (DEST / "index.html").write_text(
     '<!doctype html><html><head><meta charset="utf-8">'
     '<meta name="viewport" content="width=device-width,initial-scale=1">'
-    '<meta http-equiv="refresh" content="0; url=go-v7/index.html">'
-    '</head><body><a href="go-v7/index.html">Abrir Mini DayZ</a></body></html>',
+    '<meta http-equiv="refresh" content="0; url=go-v8/index.html">'
+    '</head><body><a href="go-v8/index.html">Abrir Mini DayZ</a></body></html>',
     encoding="utf-8"
 )
 (DEST / ".nojekyll").touch()
