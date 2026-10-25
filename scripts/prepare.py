@@ -3,6 +3,7 @@
 import io
 import json
 import re
+import subprocess
 import shutil
 import urllib.request
 import zipfile
@@ -11,7 +12,7 @@ from pathlib import Path
 
 SOURCE = "https://raw.githubusercontent.com/DorinelMDZ/Mini-DayZ-IOS-PC/main/www.zip"
 DEST = Path("site")
-GAME = DEST / "go-v8"
+GAME = DEST / "go-v9"
 if DEST.exists():
     shutil.rmtree(DEST)
 GAME.mkdir(parents=True)
@@ -37,6 +38,36 @@ for extension in ("ogg", "m4a"):
     if not source.is_file():
         raise RuntimeError("Missing native click sample: " + str(source))
     shutil.copyfile(source, target)
+
+# iOS Safari commonly selects AAC/M4A. The original archive omits many
+# M4A counterparts, leaving footsteps, attacks and ambient sounds silent.
+# Produce BOTH codec variants for every source audio stem.
+ffmpeg = shutil.which("ffmpeg")
+if not ffmpeg:
+    raise RuntimeError("ffmpeg is required to restore missing Safari audio")
+audio_dir = GAME / "media"
+converted = []
+for source in sorted(audio_dir.iterdir()):
+    if source.suffix.lower() not in (".ogg", ".m4a"):
+        continue
+    other = source.with_suffix(".m4a" if source.suffix.lower() == ".ogg" else ".ogg")
+    if other.exists():
+        continue
+    if source.suffix.lower() == ".ogg":
+        command = [ffmpeg, "-hide_banner", "-loglevel", "error", "-nostdin", "-y",
+                   "-i", str(source), "-vn", "-c:a", "aac", "-b:a", "112k",
+                   "-movflags", "+faststart", str(other)]
+    else:
+        command = [ffmpeg, "-hide_banner", "-loglevel", "error", "-nostdin", "-y",
+                   "-i", str(source), "-vn", "-c:a", "libvorbis", "-q:a", "4",
+                   str(other)]
+    subprocess.run(command, check=True, timeout=90)
+    if not other.is_file() or other.stat().st_size < 100:
+        raise RuntimeError("Conversion failed: " + str(other))
+    converted.append(other.name)
+print("Restored missing audio codec variants:", len(converted))
+assert all(p.with_suffix(".m4a").is_file() and p.with_suffix(".ogg").is_file()
+           for p in audio_dir.glob("*.ogg"))
 
 data_file = GAME / "data.js"
 data = data_file.read_text(encoding="utf-8-sig")
@@ -136,6 +167,8 @@ fallback = """(function(){
 })();""".replace("__LOCALIZATION__", json.dumps(translations, ensure_ascii=False, separators=(",", ":")))
 (GAME / "localization-fix.js").write_text(fallback, encoding="utf-8")
 
+(GAME / "audio-fix.js").write_text("(function () {\n  \"use strict\";\n  // Capture the Web Audio contexts Construct 2 creates so they can be\n  // resumed synchronously during a trusted iPhone touch.\n  var contexts = [];\n  window.__mdzAudioContexts = contexts;\n  window.__mdzAudioUnlocks = 0;\n  window.__mdzAudioErrors = [];\n  function wrapConstructor(name) {\n    var Native = window[name];\n    if (typeof Native !== \"function\" || Native.__mdzWrapped) return;\n    function Wrapped() {\n      var instance = Reflect.construct(Native, Array.prototype.slice.call(arguments));\n      if (contexts.indexOf(instance) < 0) contexts.push(instance);\n      return instance;\n    }\n    Wrapped.prototype = Native.prototype;\n    try { Object.setPrototypeOf(Wrapped, Native); } catch (e) {}\n    Wrapped.__mdzWrapped = true;\n    window[name] = Wrapped;\n  }\n  wrapConstructor(\"AudioContext\");\n  wrapConstructor(\"webkitAudioContext\");\n\n  function unlock() {\n    window.__mdzAudioUnlocks++;\n    contexts.forEach(function (ctx) {\n      try {\n        if (ctx.state !== \"running\" && typeof ctx.resume === \"function\") {\n          var result = ctx.resume();\n          if (result && result.catch) result.catch(function (err) {\n            window.__mdzAudioErrors.push(String(err));\n          });\n        }\n        if (!ctx.__mdzPrimed) {\n          var buffer = ctx.createBuffer(1, 1, ctx.sampleRate || 44100);\n          var src = ctx.createBufferSource();\n          src.buffer = buffer;\n          src.connect(ctx.destination);\n          src.start(0);\n          ctx.__mdzPrimed = true;\n        }\n      } catch (err) {\n        window.__mdzAudioErrors.push(String(err));\n      }\n    });\n    updateButton();\n  }\n  [\"touchstart\", \"touchend\", \"pointerdown\", \"click\", \"keydown\"].forEach(function (eventName) {\n    document.addEventListener(eventName, unlock, {capture:true, passive:true});\n  });\n\n  var button = null;\n  function updateButton() {\n    if (!button) return;\n    var needsUnlock = contexts.some(function (ctx) { return ctx.state !== \"running\"; });\n    button.style.display = needsUnlock ? \"block\" : \"none\";\n  }\n  function showUnlockButton() {\n    if (!document.body || button) return;\n    button = document.createElement(\"button\");\n    button.type = \"button\";\n    button.id = \"mdz-audio-unlock\";\n    button.textContent = \"🔊 Activar sonido\";\n    button.style.cssText = \"position:fixed;top:10px;right:10px;z-index:2147483640;background:#1b3120;color:#fff;border:2px solid #9dd47d;border-radius:9px;padding:10px;font:bold 14px Arial,sans-serif\";\n    button.addEventListener(\"touchstart\", unlock, {passive:true});\n    button.addEventListener(\"click\", unlock);\n    document.body.appendChild(button);\n    updateButton();\n  }\n  document.addEventListener(\"DOMContentLoaded\", function () {\n    setTimeout(showUnlockButton, 3500);\n    setInterval(updateButton, 1200);\n  });\n})();", encoding="utf-8")
+
 index_file = GAME / "index.html"
 html = index_file.read_text(encoding="utf-8-sig")
 # Keep Construct 2 standard document-ready startup (no gated start button).
@@ -178,7 +211,7 @@ window.addEventListener("unhandledrejection",function(ev){
  timer=setInterval(ensure,350);
 })();
 </script>"""
-html = html.replace('<script src="jquery-3.4.1.min.js"></script>', boot + '\n<script src="localization-fix.js"></script>\n<script src="jquery-3.4.1.min.js"></script>', 1)
+html = html.replace('<script src="jquery-3.4.1.min.js"></script>', boot + '\n<script src="audio-fix.js"></script>\n<script src="localization-fix.js"></script>\n<script src="jquery-3.4.1.min.js"></script>', 1)
 # Completely remove the registration function inside original index to avoid
 # overriding our no-op and preserve the initial unmodified startup script.
 sw_pattern = r'window\.C2_RegisterSW\s*=\s*function C2_RegisterSW\(\)\s*\{[\s\S]*?\n\s*\};'
@@ -191,8 +224,8 @@ index_file.write_text(html, encoding="utf-8")
 (DEST / "index.html").write_text(
     '<!doctype html><html><head><meta charset="utf-8">'
     '<meta name="viewport" content="width=device-width,initial-scale=1">'
-    '<meta http-equiv="refresh" content="0; url=go-v8/index.html">'
-    '</head><body><a href="go-v8/index.html">Abrir Mini DayZ</a></body></html>',
+    '<meta http-equiv="refresh" content="0; url=go-v9/index.html">'
+    '</head><body><a href="go-v9/index.html">Abrir Mini DayZ</a></body></html>',
     encoding="utf-8"
 )
 (DEST / ".nojekyll").touch()
