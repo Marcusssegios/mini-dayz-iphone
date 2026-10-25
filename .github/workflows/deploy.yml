@@ -30,6 +30,8 @@ jobs:
           python3 -m http.server 8975 --directory site >/tmp/mini-dayz-server.log 2>&1 &
           sleep 2
           node scripts/verify.mjs
+          npx playwright-core install --with-deps webkit
+          node scripts/verify-webkit.mjs
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
