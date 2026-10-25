@@ -93,6 +93,22 @@ jobs:
           s=s.replace('</head>',diagnostic+'</head>')
           s=s.replace('</body>',script+'</body>')
           s=s.replace('offlineClient.js','offlineClient-disabled.js')
+          # iOS: start Construct 2 from a real user gesture instead of document.ready.
+          old='cr_createRuntime("c2canvas");'
+          if old not in s: raise RuntimeError('No se encontró inicio de Construct 2')
+          start="""(function(){
+            var start=document.createElement('button');
+            start.textContent='▶ TOCAR PARA INICIAR MINI DAYZ';
+            start.style.cssText='position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:2147483640;padding:20px;background:#182b1b;color:#fff;border:2px solid #9ac479;border-radius:12px;font:bold 17px sans-serif;max-width:90vw';
+            document.body.appendChild(start);
+            var started=false;
+            start.addEventListener('click',function(){
+              if(started)return;
+              started=true;start.remove();
+              try{cr_createRuntime('c2canvas');}catch(e){alert('Error al iniciar: '+e.message);throw e;}
+            },{once:true});
+          })();"""
+          s=s.replace(old,start)
           p.write_text(s,encoding='utf-8')
           Path('site/.nojekyll').touch()
           PY
