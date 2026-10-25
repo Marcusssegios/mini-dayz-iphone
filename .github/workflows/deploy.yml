@@ -93,22 +93,28 @@ jobs:
           s=s.replace('</head>',diagnostic+'</head>')
           s=s.replace('</body>',script+'</body>')
           s=s.replace('offlineClient.js','offlineClient-disabled.js')
-          # iOS: start Construct 2 from a real user gesture instead of document.ready.
-          old='cr_createRuntime("c2canvas");'
-          if old not in s: raise RuntimeError('No se encontró inicio de Construct 2')
-          start="""(function(){
-            var start=document.createElement('button');
-            start.textContent='▶ TOCAR PARA INICIAR MINI DAYZ';
-            start.style.cssText='position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:2147483640;padding:20px;background:#182b1b;color:#fff;border:2px solid #9ac479;border-radius:12px;font:bold 17px sans-serif;max-width:90vw';
-            document.body.appendChild(start);
+          # Replace the whole jQuery ready callback; previous patch nested the button inside it.
+          import re
+          pattern=r'jQuery\(document\)\.ready\(function \(\)\s*\{[\s\S]*?\}\);'
+          gate="""<script>
+          (function(){
             var started=false;
-            start.addEventListener('click',function(){
+            var button=document.createElement('button');
+            button.id='start-game-iphone';
+            button.textContent='▶ JUGAR MINI DAYZ';
+            button.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:2147483646;background:#1b321c;color:white;border:3px solid #a5cf7b;border-radius:14px;padding:20px;font:bold 20px Arial;box-shadow:0 0 0 100vmax rgba(0,0,0,.85)';
+            document.body.appendChild(button);
+            button.addEventListener('click',function(){
               if(started)return;
-              started=true;start.remove();
-              try{cr_createRuntime('c2canvas');}catch(e){alert('Error al iniciar: '+e.message);throw e;}
-            },{once:true});
-          })();"""
-          s=s.replace(old,start)
+              started=true;button.remove();
+              try { cr_createRuntime('c2canvas'); }
+              catch(e){ alert('No se pudo iniciar: '+e.message);throw e; }
+            });
+          })();
+          </script>"""
+          s,count=re.subn(pattern,'/* Inicio manual desde Safari */',s,count=1)
+          if count!=1: raise RuntimeError('No se encontró el bloque de inicio automático')
+          s=s.replace('</body>',gate+'</body>')
           p.write_text(s,encoding='utf-8')
           Path('site/.nojekyll').touch()
           PY
