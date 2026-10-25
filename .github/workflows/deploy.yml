@@ -65,6 +65,32 @@ jobs:
             },30000);
           });
           </script>"""
+          diagnostic="""<script>
+          (function(){
+            var errors=[];
+            function record(s){errors.push(String(s).slice(0,250));if(errors.length>8)errors.shift();}
+            window.addEventListener('error',function(e){
+              record(e.message||('Recurso: '+(e.target&&e.target.src||e.target&&e.target.href||'desconocido')));
+            },true);
+            window.addEventListener('unhandledrejection',function(e){record('Promesa: '+String(e.reason));});
+            window.addEventListener('DOMContentLoaded',function(){
+              setTimeout(function(){
+                var panel=document.createElement('div');
+                panel.style.cssText='position:fixed;top:8px;left:8px;right:8px;z-index:2147483647;background:#101820ee;color:white;padding:12px;font:12px monospace;border:2px solid #ffc107;border-radius:8px;max-height:45vh;overflow:auto';
+                var heading=document.createElement('div');heading.textContent='DIAGNÓSTICO MINI DAYZ | Safari';
+                var details=document.createElement('pre');details.style.whiteSpace='pre-wrap';
+                var btn=document.createElement('button');btn.textContent='Copiar diagnóstico';
+                btn.onclick=function(){var t=details.textContent;navigator.clipboard&&navigator.clipboard.writeText(t);};
+                var close=document.createElement('button');close.textContent='Ocultar';close.onclick=function(){panel.remove();};
+                panel.append(heading,details,btn,close);document.body.appendChild(panel);
+                setInterval(function(){
+                  details.textContent='URL: '+location.pathname+'\\nPantalla: '+innerWidth+'x'+innerHeight+'\\nErrores: '+(errors.join('\\n')||'No detectados')+'\\nScripts: '+document.scripts.length;
+                },1000);
+              },12000);
+            });
+          })();
+          </script>"""
+          s=s.replace('</head>',diagnostic+'</head>')
           s=s.replace('</body>',script+'</body>')
           s=s.replace('offlineClient.js','offlineClient-disabled.js')
           p.write_text(s,encoding='utf-8')
