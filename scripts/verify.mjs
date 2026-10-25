@@ -1,0 +1,47 @@
+import { chromium } from "playwright-core";
+import fs from "node:fs";
+
+const candidates = ["/usr/bin/google-chrome", "/usr/bin/google-chrome-stable", "/opt/google/chrome/chrome", "/usr/bin/chromium"];
+const exe = candidates.find(x => fs.existsSync(x));
+if (!exe) throw Error("No installed Chromium/Chrome found on CI");
+console.log("Browser:", exe);
+const browser = await chromium.launch({
+  executablePath: exe, headless: true,
+  args: ["--no-sandbox", "--disable-dev-shm-usage", "--use-gl=angle", "--use-angle=swiftshader",
+         "--enable-webgl", "--autoplay-policy=no-user-gesture-required"]
+});
+const page = await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
+const errors=[];
+const resources=[];
+page.on("pageerror", e => {errors.push(String(e)); console.log("JS ERROR",String(e).slice(0,300));});
+page.on("console", m => {if(m.type()==="error") console.log("CONSOLE",m.text().slice(0,300));});
+page.on("response", r => {if(r.status()>=400) resources.push(r.status()+" "+r.url());});
+page.on("requestfailed", r => {resources.push("FAILED "+r.url()+" "+r.failure());});
+const url="http://127.0.0.1:8975/go-v4/index.html";
+console.log("Opening",url);
+await page.goto(url,{waitUntil:"domcontentloaded",timeout:30000});
+let final=null;
+for (const delay of [5000,15000,20000]) {
+  await page.waitForTimeout(delay);
+  const state=await page.evaluate(() => {
+    let rt=window.cr_getC2Runtime?.();
+    let canvas=document.querySelector("canvas");
+    return {
+      bootStarted: !!rt, targetLayout: rt?.Xv, initialized:rt?.Ml,
+      layouts:rt?.He?.map(x=>x.name), active: rt?.running_layout?.name,
+      runtimeFlags:rt ? Object.keys(rt).filter(k=>/layout|ready|loading|start|progress/i.test(k)).slice(0,20) : [],
+      canvas:{width:canvas?.width,height:canvas?.height},
+      jsErrors:window.__mdzErrors?.slice(0,10),
+      docs:document.body.textContent.slice(0,120)
+    };
+  });
+  console.log("GAME STATE",JSON.stringify(state));
+  final=state;
+  await page.screenshot({path:"site/ci-menu-test.png",timeout:20000});
+}
+console.log("FAILED RESOURCES",resources.slice(0,35),"TOTAL",resources.length);
+await browser.close();
+if(errors.length || resources.length || !final.bootStarted || final.targetLayout!=="Menu") {
+ throw Error("Game failed automated boot verification: "+JSON.stringify(final));
+}
+console.log("PASS: Construct 2 runtime started, forced real Menu layout, no script or resource errors");
