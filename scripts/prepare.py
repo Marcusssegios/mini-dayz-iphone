@@ -69,6 +69,27 @@ for source in sorted(audio_dir.iterdir()):
     if not other.is_file() or other.stat().st_size < 100:
         raise RuntimeError("Conversion failed: " + str(other))
     converted.append(other.name)
+# Nine original .m4a files are actually ALAC (Apple Lossless), not AAC.
+# WebKit rejects some with EncodingError: Decoding failed, which can stop
+# Construct 2's sound preload. Normalize these to standard AAC for iOS.
+legacy_alac = ("chop", "chop2", "chop3", "chop4", "attack_0",
+               "attack_1", "spotted_0", "spotted_1", "mosin")
+for stem in legacy_alac:
+    target = audio_dir / (stem + ".m4a")
+    if not target.is_file():
+        raise RuntimeError("Missing original ALAC track " + stem)
+    source = audio_dir / (stem + ".ogg")
+    if not source.is_file():
+        source = target
+    temp = audio_dir / (stem + ".aac-repaired.m4a")
+    command = [ffmpeg, "-hide_banner", "-loglevel", "error", "-nostdin", "-y",
+               "-i", str(source), "-vn", "-c:a", "aac", "-b:a", "128k",
+               "-movflags", "+faststart", str(temp)]
+    subprocess.run(command, check=True, timeout=90)
+    if not temp.exists() or temp.stat().st_size < 200:
+        raise RuntimeError("Failed to normalize ALAC: " + stem)
+    temp.replace(target)
+print("Normalized incompatible ALAC files to AAC:", len(legacy_alac))
 print("Restored missing audio codec variants:", len(converted))
 assert all(p.with_suffix(".m4a").is_file() and p.with_suffix(".ogg").is_file()
            for p in audio_dir.glob("*.ogg"))
