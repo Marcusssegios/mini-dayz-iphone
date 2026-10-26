@@ -106,7 +106,7 @@ if(recovered.suspended||!recovered.status.states.includes("running")||
 // Explicit repair button must also unmute Construct 2's *game* sound flag.
 const muteSetup=await page.evaluate(()=>{
  const plugin=window.cr_getC2Runtime?.()?.aj;
- const acts=plugin?.type?.plugin?.n;
+ const acts=plugin?.type?.ja?.n || plugin?.type?.plugin?.n;
  if(acts && typeof acts.zC==="function") acts.zC.call(plugin,0);
  return {supported:!!(acts && typeof acts.zC==="function"),
    silent:plugin?.Fa?.().silent};
