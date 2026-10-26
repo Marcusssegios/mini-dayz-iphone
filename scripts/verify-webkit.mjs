@@ -103,6 +103,22 @@ if(recovered.suspended||!recovered.status.states.includes("running")||
    recovered.status.errors.length||recovered.status.tests<1){
   throw Error("Safari failed to recover from game suspension: "+JSON.stringify(recovered));
 }
+// Explicit repair button must also unmute Construct 2's *game* sound flag.
+const muteSetup=await page.evaluate(()=>{
+ const plugin=window.cr_getC2Runtime?.()?.aj;
+ const acts=plugin?.type?.plugin?.n;
+ if(acts && typeof acts.zC==="function") acts.zC.call(plugin,0);
+ return {supported:!!(acts && typeof acts.zC==="function"),
+   silent:plugin?.Fa?.().silent};
+});
+console.log("WEBKIT GAME MUTE TEST SETUP",JSON.stringify(muteSetup));
+if(!muteSetup.supported || !muteSetup.silent){
+ throw Error("Could not simulate native game audio mute: "+JSON.stringify(muteSetup));
+}
+await page.locator("#mdz-audio-unlock").click({force:true});
+const unmuted=await page.evaluate(()=>window.__mdzAudioStatus?.());
+console.log("WEBKIT GAME UNMUTE",JSON.stringify(unmuted));
+if(unmuted.silent)throw Error("Repair button did not unmute Construct 2 audio");
 // Re-open the same URL in the same Safari/WebKit session, preserving cache.
 await page.goto("about:blank");
 await page.goto("http://127.0.0.1:8975/go-v10/index.html",{waitUntil:"domcontentloaded",timeout:30000});
