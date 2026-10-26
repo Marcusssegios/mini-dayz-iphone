@@ -158,9 +158,26 @@
   }
   window.__mdzRecoverAudio = function () { recover("manual", true); };
 
-  function onGesture() {
-    lastGesture = Date.now();
+  function onGesture(event) {
+    var target = event && event.target;
+    var isButton = !!(target && (
+      target.id === "mdz-audio-unlock" ||
+      (target.closest && target.closest("#mdz-audio-unlock"))
+    ));
+    var now = Date.now();
     window.__mdzAudioUnlocks++;
+    if (isButton) {
+      // Construct 2 listens on document in the capture phase and may consume
+      // the click before it reaches a normal button listener. Handle it HERE,
+      // registered before c2runtime.js, directly in the trusted user gesture.
+      if (now - lastGesture > 400) {
+        lastGesture = now;
+        recover("button-capture", true);
+      }
+      if (event.cancelable) event.preventDefault();
+      if (event.stopImmediatePropagation) event.stopImmediatePropagation();
+      return;
+    }
     recover("touch", false);
   }
   ["touchstart", "touchend", "pointerdown", "pointerup", "click", "keydown"].forEach(function (name) {
