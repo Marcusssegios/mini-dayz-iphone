@@ -82,7 +82,7 @@
     if (!plugin) return;
     try {
       var state = plugin.Fa && plugin.Fa();
-      var acts = plugin.type && plugin.type.plugin && plugin.type.plugin.n;
+      var acts = plugin.type && ((plugin.type.ja && plugin.type.ja.n) || (plugin.type.plugin && plugin.type.plugin.n));
       if (state && acts && state.silent && typeof acts.zC === "function") {
         acts.zC.call(plugin, 1); // 1 = unmute, not toggle
       }
