@@ -24,10 +24,10 @@ jobs:
           node-version: "22"
       - name: Instalar conversor de audio para Safari
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq ffmpeg
+          python3 -m venv /tmp/mdz-audio-venv
+          /tmp/mdz-audio-venv/bin/pip install -q imageio-ffmpeg==0.6.0
       - name: Reconstruir juego con inicio forzado al menú real
-        run: python3 scripts/prepare.py
+        run: /tmp/mdz-audio-venv/bin/python scripts/prepare.py
       - name: Probar arranque automáticamente en Chrome
         run: |
           npm install --no-save playwright-core@1.56.1 pngjs@7.0.0
