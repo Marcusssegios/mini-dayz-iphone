@@ -19,7 +19,7 @@ page.on("console", m => {if(m.type()==="error") console.log("CONSOLE",m.text().s
 page.on("response", r => {if(r.status()>=400) resources.push(r.status()+" "+r.url()); if(r.url().endsWith(".xml"))console.log("XML RESPONSE",r.status(),r.url());});
 page.on("request",r=>{if(r.url().endsWith(".xml"))console.log("XML REQUEST",r.url());});
 page.on("requestfailed", r => {resources.push("FAILED "+r.url()+" "+r.failure());});
-const url="http://127.0.0.1:8975/go-v9/index.html";
+const url="http://127.0.0.1:8975/go-v10/index.html";
 console.log("Opening",url);
 await page.goto(url,{waitUntil:"domcontentloaded",timeout:30000});
 let final=null;
