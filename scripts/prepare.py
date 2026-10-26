@@ -73,6 +73,19 @@ print("Restored missing audio codec variants:", len(converted))
 assert all(p.with_suffix(".m4a").is_file() and p.with_suffix(".ogg").is_file()
            for p in audio_dir.glob("*.ogg"))
 
+# Safari may advertise OGG/Vorbis support but still fail to decode individual
+# legacy Construct 2 samples after restoring a session. Prefer AAC/M4A on
+# iPhone/iPad, where we have just generated every missing M4A counterpart.
+runtime_file = GAME / "c2runtime.js"
+runtime_text = runtime_file.read_text(encoding="utf-8-sig")
+codec_probe = """R=!!(new Audio).canPlayType('audio/ogg; codecs="vorbis"')&&!this.b.To"""
+codec_override = """R=!(/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1))&&!!(new Audio).canPlayType('audio/ogg; codecs="vorbis"')&&!this.b.To"""
+if runtime_text.count(codec_probe) != 1:
+    raise RuntimeError("Construct 2 audio codec selection signature changed")
+runtime_text = runtime_text.replace(codec_probe, codec_override, 1)
+runtime_file.write_text(runtime_text, encoding="utf-8")
+print("Safari/iOS will use AAC/M4A audio rather than unreliable OGG.")
+
 data_file = GAME / "data.js"
 data = data_file.read_text(encoding="utf-8-sig")
 # Construct 2 project[1] is the REAL start layout. "Loading" is an entire
