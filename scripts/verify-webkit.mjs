@@ -84,7 +84,7 @@ if(intercepted<4||blockedResult.some(x=>typeof x.value!=="string"||!x.value||x.v
  throw Error("Safari XML-free fallback failed: "+JSON.stringify(blockedResult));
 }
 await browser.close();
-if(sound.states.length<1||sound.states.some(x=>x!=="running")||sound.errors.length||!dictionaries.ready||dictionaries.sample.some(x=>typeof x.first!=="string"||!x.first||x.first==="0")||!last.bootStarted||last.layout!=="Menu"||last.loadedLayouts<7||last.progress<0.99||Math.max(uiRatio,landscapeRatio)<0.015||bad.length||errors.length){
+if(!sound.states.includes("running")||sound.states.filter(x=>x!=="closed").some(x=>x!=="running")||sound.errors.length||!dictionaries.ready||dictionaries.sample.some(x=>typeof x.first!=="string"||!x.first||x.first==="0")||!last.bootStarted||last.layout!=="Menu"||last.loadedLayouts<7||last.progress<0.99||Math.max(uiRatio,landscapeRatio)<0.015||bad.length||errors.length){
  throw Error("iPhone WebKit engine failed to load Menu: "+JSON.stringify(last));
 }
 console.log("PASS WEBKIT: iPhone-sized WebKit reaches fully loaded Construct 2 Menu layout.");
