@@ -44,7 +44,11 @@ for extension in ("ogg", "m4a"):
 # Produce BOTH codec variants for every source audio stem.
 ffmpeg = shutil.which("ffmpeg")
 if not ffmpeg:
-    raise RuntimeError("ffmpeg is required to restore missing Safari audio")
+    try:
+        import imageio_ffmpeg
+        ffmpeg = imageio_ffmpeg.get_ffmpeg_exe()
+    except ImportError as exc:
+        raise RuntimeError("ffmpeg or imageio-ffmpeg is required to restore Safari audio") from exc
 audio_dir = GAME / "media"
 converted = []
 for source in sorted(audio_dir.iterdir()):
