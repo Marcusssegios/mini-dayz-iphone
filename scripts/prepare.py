@@ -12,7 +12,7 @@ from pathlib import Path
 
 SOURCE = "https://raw.githubusercontent.com/DorinelMDZ/Mini-DayZ-IOS-PC/main/www.zip"
 DEST = Path("site")
-GAME = DEST / "go-v9"
+GAME = DEST / "go-v10"
 if DEST.exists():
     shutil.rmtree(DEST)
 GAME.mkdir(parents=True)
@@ -171,7 +171,7 @@ fallback = """(function(){
 })();""".replace("__LOCALIZATION__", json.dumps(translations, ensure_ascii=False, separators=(",", ":")))
 (GAME / "localization-fix.js").write_text(fallback, encoding="utf-8")
 
-(GAME / "audio-fix.js").write_text("(function () {\n  \"use strict\";\n  // Capture the Web Audio contexts Construct 2 creates so they can be\n  // resumed synchronously during a trusted iPhone touch.\n  var contexts = [];\n  window.__mdzAudioContexts = contexts;\n  window.__mdzAudioUnlocks = 0;\n  window.__mdzAudioErrors = [];\n  function wrapConstructor(name) {\n    var Native = window[name];\n    if (typeof Native !== \"function\" || Native.__mdzWrapped) return;\n    function Wrapped() {\n      var instance = Reflect.construct(Native, Array.prototype.slice.call(arguments));\n      if (contexts.indexOf(instance) < 0) contexts.push(instance);\n      return instance;\n    }\n    Wrapped.prototype = Native.prototype;\n    try { Object.setPrototypeOf(Wrapped, Native); } catch (e) {}\n    Wrapped.__mdzWrapped = true;\n    window[name] = Wrapped;\n  }\n  wrapConstructor(\"AudioContext\");\n  wrapConstructor(\"webkitAudioContext\");\n\n  function unlock() {\n    window.__mdzAudioUnlocks++;\n    contexts.forEach(function (ctx) {\n      // Construct 2 closes its first context and creates a replacement on iOS.\n      if (ctx.state === \"closed\") return;\n      try {\n        if (ctx.state !== \"running\" && typeof ctx.resume === \"function\") {\n          var result = ctx.resume();\n          if (result && result.catch) result.catch(function (err) {\n            window.__mdzAudioErrors.push(String(err));\n          });\n        }\n        if (!ctx.__mdzPrimed) {\n          var buffer = ctx.createBuffer(1, 1, ctx.sampleRate || 44100);\n          var src = ctx.createBufferSource();\n          src.buffer = buffer;\n          src.connect(ctx.destination);\n          src.start(0);\n          ctx.__mdzPrimed = true;\n        }\n      } catch (err) {\n        window.__mdzAudioErrors.push(String(err));\n      }\n    });\n    updateButton();\n  }\n  [\"touchstart\", \"touchend\", \"pointerdown\", \"click\", \"keydown\"].forEach(function (eventName) {\n    document.addEventListener(eventName, unlock, {capture:true, passive:true});\n  });\n\n  var button = null;\n  function updateButton() {\n    if (!button) return;\n    var needsUnlock = contexts.some(function (ctx) { return ctx.state !== \"running\" && ctx.state !== \"closed\"; });\n    button.style.display = needsUnlock ? \"block\" : \"none\";\n  }\n  function showUnlockButton() {\n    if (!document.body || button) return;\n    button = document.createElement(\"button\");\n    button.type = \"button\";\n    button.id = \"mdz-audio-unlock\";\n    button.textContent = \"🔊 Activar sonido\";\n    button.style.cssText = \"position:fixed;top:10px;right:10px;z-index:2147483640;background:#1b3120;color:#fff;border:2px solid #9dd47d;border-radius:9px;padding:10px;font:bold 14px Arial,sans-serif\";\n    button.addEventListener(\"touchstart\", unlock, {passive:true});\n    button.addEventListener(\"click\", unlock);\n    document.body.appendChild(button);\n    updateButton();\n  }\n  document.addEventListener(\"DOMContentLoaded\", function () {\n    setTimeout(showUnlockButton, 3500);\n    setInterval(updateButton, 1200);\n  });\n})();", encoding="utf-8")
+shutil.copyfile("scripts/audio-recovery.js", GAME / "audio-fix.js")
 
 index_file = GAME / "index.html"
 html = index_file.read_text(encoding="utf-8-sig")
@@ -228,8 +228,8 @@ index_file.write_text(html, encoding="utf-8")
 (DEST / "index.html").write_text(
     '<!doctype html><html><head><meta charset="utf-8">'
     '<meta name="viewport" content="width=device-width,initial-scale=1">'
-    '<meta http-equiv="refresh" content="0; url=go-v9/index.html">'
-    '</head><body><a href="go-v9/index.html">Abrir Mini DayZ</a></body></html>',
+    '<meta http-equiv="refresh" content="0; url=go-v10/index.html">'
+    '</head><body><a href="go-v10/index.html">Abrir Mini DayZ</a></body></html>',
     encoding="utf-8"
 )
 (DEST / ".nojekyll").touch()
