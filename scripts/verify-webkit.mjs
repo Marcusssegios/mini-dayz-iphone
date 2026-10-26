@@ -3,7 +3,8 @@ import { PNG } from "pngjs";
 import {webkit, devices} from "playwright-core";
 const browser=await webkit.launch({headless:true});
 const page=await browser.newPage({...devices["iPhone 13"],viewport:{width:390,height:844}});
-const errors=[],bad=[];
+const errors=[],bad=[],audioRequests=[];
+page.on("request",r=>{if(/\\.(m4a|ogg)(?:\\?|$)/i.test(r.url()))audioRequests.push(r.url());});
 page.on("pageerror", e=>{errors.push(String(e)); console.log("WEBKIT JS ERROR",String(e).slice(0,500));});
 page.on("response",r=>{if(r.status()>=400)bad.push(r.status()+" "+r.url());});
 page.on("requestfailed",r=>{bad.push(r.url()+" "+r.failure());});
@@ -63,6 +64,7 @@ const sound=await page.evaluate(()=>({
   pluginReady:!!window.cr_getC2Runtime?.()?.aj
 }));
 console.log("WEBKIT SOUND CHECK",JSON.stringify(sound));
+console.log("WEBKIT AUDIO CODECS",JSON.stringify({m4a:audioRequests.filter(x=>/\\.m4a(?:\\?|$)/i.test(x)).length,ogg:audioRequests.filter(x=>/\\.ogg(?:\\?|$)/i.test(x)).length,samples:audioRequests.slice(0,8)}));
 console.log("WEBKIT FAILED RESOURCES",bad.slice(0,25),"TOTAL",bad.length);
 // Prove the fallback works even if legacy XML/XPath completely fails in Safari.
 const blocked=await browser.newPage({...devices["iPhone 13"],viewport:{width:390,height:844}});
