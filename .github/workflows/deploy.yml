@@ -8,7 +8,7 @@ permissions:
   pages: write
   id-token: write
 concurrency:
-  group: pages-audio-v9
+  group: pages-audio-v10
   cancel-in-progress: true
 jobs:
   deploy:
